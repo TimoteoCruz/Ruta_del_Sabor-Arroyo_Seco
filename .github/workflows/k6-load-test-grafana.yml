@@ -1,0 +1,82 @@
+name: K6 Load Testing with Grafana
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  k6-load-test:
+    name: Pruebas de Carga con K6 + Grafana
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Instalar K6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415C3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Ejecutar pruebas con Grafana Cloud
+        env:
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
+        run: |
+          if [ -n "$K6_CLOUD_TOKEN" ]; then
+            echo "🚀 Ejecutando con Grafana Cloud..."
+            k6 run k6/load-test.js \
+              --out cloud \
+              --out json=results.json \
+              --summary-export=summary.json
+          else
+            echo "⚠️ Token de Grafana no configurado, ejecutando localmente..."
+            k6 run k6/load-test.js \
+              --out json=results.json \
+              --summary-export=summary.json
+          fi
+        continue-on-error: true
+
+      - name: Subir resultados
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-results-${{ github.run_number }}
+          path: |
+            results.json
+            summary.json
+          retention-days: 30
+
+      - name: Generar reporte en GitHub
+        if: always()
+        run: |
+          echo "## 📊 Resultados de Pruebas de Carga K6" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Rama:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Ejecutado por:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f summary.json ]; then
+            echo "### ✅ Prueba completada" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📦 Los resultados detallados están disponibles en los artefactos." >> $GITHUB_STEP_SUMMARY
+            
+            if [ -n "$K6_CLOUD_TOKEN" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "🔗 **Visualiza las métricas en tiempo real en Grafana Cloud**" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "### ❌ Error en la ejecución" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Revisa los logs para más información." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "_Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")_" >> $GITHUB_STEP_SUMMARY

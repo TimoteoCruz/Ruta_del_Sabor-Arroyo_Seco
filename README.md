@@ -18,6 +18,12 @@ El proyecto prioriza escalabilidad, rendimiento y funcionalidad offline.
 - `hotfix/*` → Correcciones críticas
 - `release/*` → Preparación de nuevas versiones
 
+## Workflows
+- Script de K6 (k6/load-test.js): Este archivo contiene las pruebas de carga que simularán usuarios en tu app.
+
+## k6
+- Workflow de GitHub Actions (.github/workflows/k6-load-test.yml): Este archivo le dice a GitHub cuándo y cómo ejecutar las pruebas.
+
 ## Instalación (Desarrollo)
 1. Clonar el repositorio:
    ```bash
