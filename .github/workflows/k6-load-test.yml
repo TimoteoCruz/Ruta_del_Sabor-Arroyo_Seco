@@ -1,64 +1,80 @@
-name: K6 Load Testing
+name: K6 Load Testing with Grafana
 
-# Se ejecuta en cada push a las ramas main o develop
 on:
   push:
     branches:
       - main
       - develop
-  # También se puede ejecutar manualmente desde la pestaña Actions
   workflow_dispatch:
 
 jobs:
   k6-load-test:
-    name: Pruebas de Carga con K6
+    name: Pruebas de Carga con K6 + Grafana
     runs-on: ubuntu-latest
     
     steps:
-      # 1. Checkout del código
       - name: Checkout código
         uses: actions/checkout@v4
 
-      # 2. Instalar K6
       - name: Instalar K6
         run: |
-          sudo gpg -k
-          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update
-          sudo apt-get install k6
+          curl -L https://github.com/grafana/k6/releases/download/v0.47.0/k6-v0.47.0-linux-amd64.tar.gz | tar xvz
+          sudo mv k6-v0.47.0-linux-amd64/k6 /usr/local/bin/k6
+          k6 version
 
-      # 3. Ejecutar pruebas de K6
-      - name: Ejecutar pruebas de carga
+      - name: Ejecutar pruebas con Grafana Cloud
+        env:
+          K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
         run: |
-          k6 run k6/load-test.js \
-            --out json=results.json \
-            --summary-export=summary.json
+          if [ -n "$K6_CLOUD_TOKEN" ]; then
+            echo "🚀 Ejecutando con Grafana Cloud..."
+            k6 run k6/load-test.js \
+              --out cloud \
+              --out json=results.json \
+              --summary-export=summary.json
+          else
+            echo "⚠️ Token de Grafana no configurado, ejecutando localmente..."
+            k6 run k6/load-test.js \
+              --out json=results.json \
+              --summary-export=summary.json
+          fi
         continue-on-error: true
 
-      # 4. Subir resultados como artefactos
       - name: Subir resultados
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: k6-results
+          name: k6-results-${{ github.run_number }}
           path: |
             results.json
             summary.json
           retention-days: 30
 
-      # 5. Comentar resultados en el commit (opcional)
-      - name: Mostrar resumen
+      - name: Generar reporte en GitHub
         if: always()
         run: |
           echo "## 📊 Resultados de Pruebas de Carga K6" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Métricas principales:" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Rama:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Ejecutado por:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          
           if [ -f summary.json ]; then
-            echo "✅ Pruebas completadas exitosamente" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Prueba completada" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Ver artefactos para más detalles." >> $GITHUB_STEP_SUMMARY
+            echo "📦 Los resultados detallados están disponibles en los artefactos." >> $GITHUB_STEP_SUMMARY
+            
+            if [ -n "$K6_CLOUD_TOKEN" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "🔗 **Visualiza las métricas en tiempo real en Grafana Cloud**" >> $GITHUB_STEP_SUMMARY
+            fi
           else
-            echo "❌ Error al generar resumen" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Error en la ejecución" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Revisa los logs para más información." >> $GITHUB_STEP_SUMMARY
           fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "_Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")_" >> $GITHUB_STEP_SUMMARY
