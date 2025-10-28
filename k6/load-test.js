@@ -17,6 +17,11 @@ export const options = {
     http_req_failed: ['rate<0.1'],     // Menos del 10% de peticiones pueden fallar
     errors: ['rate<0.1'],              // Menos del 10% de errores
   },
+  // Configuración para Grafana Cloud
+  cloud: {
+    name: 'Ruta del Sabor - Prueba de Carga',
+    projectID: 3796716,
+  },
 };
 
 // URL base de la aplicación
@@ -84,8 +89,8 @@ export function handleSummary(data) {
 }
 
 function textSummary(data, options) {
-  const indent = options?.indent || '';
-  const enableColors = options?.enableColors || false;
+  const indent = (options && options.indent) || '';
+  const enableColors = (options && options.enableColors) || false;
   
   let summary = `\n${indent}Resumen de Pruebas de Carga - Ruta del Sabor\n`;
   summary += `${indent}${'='.repeat(50)}\n\n`;
@@ -93,19 +98,19 @@ function textSummary(data, options) {
   const metrics = data.metrics;
   
   summary += `${indent}📊 Métricas Generales:\n`;
-  summary += `${indent}  • Total de peticiones: ${metrics.http_reqs?.values.count || 0}\n`;
-  summary += `${indent}  • Peticiones exitosas: ${metrics.http_reqs?.values.count - (metrics.http_req_failed?.values.passes || 0)}\n`;
-  summary += `${indent}  • Peticiones fallidas: ${metrics.http_req_failed?.values.passes || 0}\n`;
-  summary += `${indent}  • Tasa de error: ${((metrics.errors?.values.rate || 0) * 100).toFixed(2)}%\n\n`;
+  summary += `${indent}  • Total de peticiones: ${(metrics.http_reqs && metrics.http_reqs.values.count) || 0}\n`;
+  summary += `${indent}  • Peticiones exitosas: ${((metrics.http_reqs && metrics.http_reqs.values.count) || 0) - ((metrics.http_req_failed && metrics.http_req_failed.values.passes) || 0)}\n`;
+  summary += `${indent}  • Peticiones fallidas: ${(metrics.http_req_failed && metrics.http_req_failed.values.passes) || 0}\n`;
+  summary += `${indent}  • Tasa de error: ${(((metrics.errors && metrics.errors.values.rate) || 0) * 100).toFixed(2)}%\n\n`;
   
   summary += `${indent}⏱️  Tiempos de Respuesta:\n`;
-  summary += `${indent}  • Promedio: ${(metrics.http_req_duration?.values.avg || 0).toFixed(2)}ms\n`;
-  summary += `${indent}  • Mínimo: ${(metrics.http_req_duration?.values.min || 0).toFixed(2)}ms\n`;
-  summary += `${indent}  • Máximo: ${(metrics.http_req_duration?.values.max || 0).toFixed(2)}ms\n`;
-  summary += `${indent}  • Percentil 95: ${(metrics.http_req_duration?.values['p(95)'] || 0).toFixed(2)}ms\n\n`;
+  summary += `${indent}  • Promedio: ${((metrics.http_req_duration && metrics.http_req_duration.values.avg) || 0).toFixed(2)}ms\n`;
+  summary += `${indent}  • Mínimo: ${((metrics.http_req_duration && metrics.http_req_duration.values.min) || 0).toFixed(2)}ms\n`;
+  summary += `${indent}  • Máximo: ${((metrics.http_req_duration && metrics.http_req_duration.values.max) || 0).toFixed(2)}ms\n`;
+  summary += `${indent}  • Percentil 95: ${((metrics.http_req_duration && metrics.http_req_duration.values['p(95)']) || 0).toFixed(2)}ms\n\n`;
   
   summary += `${indent}👥 Usuarios Virtuales:\n`;
-  summary += `${indent}  • Usuarios simultáneos máximos: ${metrics.vus_max?.values.value || 0}\n\n`;
+  summary += `${indent}  • Usuarios simultáneos máximos: ${(metrics.vus_max && metrics.vus_max.values.value) || 0}\n\n`;
   
   return summary;
 }
