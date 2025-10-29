@@ -8,8 +8,8 @@ const errorRate = new Rate('errors');
 // Configuración de la prueba
 export const options = {
   stages: [
-    { duration: '10s', target: 20 },  // Ramp-up: incrementa a 20 usuarios en 10s
-    { duration: '40s', target: 50 },  // Carga sostenida: mantiene 50 usuarios por 40s
+    { duration: '10s', target: 50 },  // Ramp-up: incrementa a 50 usuarios en 10s
+    { duration: '40s', target: 1000 },  // Carga sostenida: mantiene 1000 usuarios por 40s
     { duration: '10s', target: 0 },   // Ramp-down: reduce a 0 usuarios en 10s
   ],
   thresholds: {
