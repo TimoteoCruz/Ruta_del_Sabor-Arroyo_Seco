@@ -81,31 +81,3 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "_Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")_" >> $GITHUB_STEP_SUMMARY
-
-      - name: Comentar en PR con resultados
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let comment = '## 📊 Resultados de Pruebas de Carga K6\n\n';
-            
-            if (fs.existsSync('summary.json')) {
-              comment += '✅ Las pruebas de carga se completaron exitosamente.\n\n';
-              comment += '📈 Revisa los artefactos para ver los detalles completos.\n\n';
-              
-              if (process.env.K6_CLOUD_TOKEN) {
-                comment += '🔗 [Ver métricas en Grafana Cloud](https://grafana.com/cloud)\n';
-              }
-            } else {
-              comment += '❌ Las pruebas de carga fallaron. Revisa los logs para más información.\n';
-            }
-            
-            comment += `\n---\n_Ejecutado en commit ${context.sha.substring(0, 7)}_`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
