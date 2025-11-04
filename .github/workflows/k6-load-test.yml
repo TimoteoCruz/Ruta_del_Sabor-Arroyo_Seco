@@ -1,9 +1,12 @@
 name: K6 Load Testing with Grafana
 
 on:
-  push:
+  pull_request:
     branches:
       - main
+      - develop
+  push:
+    branches:
       - develop
   workflow_dispatch:
 
@@ -27,13 +30,13 @@ jobs:
           K6_CLOUD_TOKEN: ${{ secrets.K6_CLOUD_TOKEN }}
         run: |
           if [ -n "$K6_CLOUD_TOKEN" ]; then
-            echo "Ejecutando con Grafana Cloud..."
+            echo "🚀 Ejecutando con Grafana Cloud..."
             k6 run k6/load-test.js \
               --out cloud \
               --out json=results.json \
               --summary-export=summary.json
           else
-            echo "⚠Token de Grafana no configurado, ejecutando localmente..."
+            echo "⚠️  Token de Grafana no configurado, ejecutando localmente..."
             k6 run k6/load-test.js \
               --out json=results.json \
               --summary-export=summary.json
@@ -53,7 +56,7 @@ jobs:
       - name: Generar reporte en GitHub
         if: always()
         run: |
-          echo "## Resultados de Pruebas de Carga K6" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Resultados de Pruebas de Carga K6" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Rama:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
@@ -61,16 +64,16 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           if [ -f summary.json ]; then
-            echo "### Prueba completada" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Prueba completada" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Los resultados detallados están disponibles en los artefactos." >> $GITHUB_STEP_SUMMARY
             
             if [ -n "$K6_CLOUD_TOKEN" ]; then
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo " **Visualiza las métricas en tiempo real en Grafana Cloud**" >> $GITHUB_STEP_SUMMARY
+              echo "📈 **Visualiza las métricas en tiempo real en Grafana Cloud**" >> $GITHUB_STEP_SUMMARY
             fi
           else
-            echo "### Error en la ejecución" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Error en la ejecución" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Revisa los logs para más información." >> $GITHUB_STEP_SUMMARY
           fi
@@ -78,3 +81,31 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "_Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")_" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comentar en PR con resultados
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## 📊 Resultados de Pruebas de Carga K6\n\n';
+            
+            if (fs.existsSync('summary.json')) {
+              comment += '✅ Las pruebas de carga se completaron exitosamente.\n\n';
+              comment += '📈 Revisa los artefactos para ver los detalles completos.\n\n';
+              
+              if (process.env.K6_CLOUD_TOKEN) {
+                comment += '🔗 [Ver métricas en Grafana Cloud](https://grafana.com/cloud)\n';
+              }
+            } else {
+              comment += '❌ Las pruebas de carga fallaron. Revisa los logs para más información.\n';
+            }
+            
+            comment += `\n---\n_Ejecutado en commit ${context.sha.substring(0, 7)}_`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
