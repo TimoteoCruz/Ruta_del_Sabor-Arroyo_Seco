@@ -3,6 +3,7 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -28,6 +29,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository | toLowerCase }}:latest
-            ghcr.io/${{ github.repository | toLowerCase }}:${{ github.sha }}
-
+            ghcr.io/timoteocruz/ruta-del-sabor:latest
+            ghcr.io/timoteocruz/ruta-del-sabor:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/timoteocruz/ruta-del-sabor:buildcache
+          cache-to: type=registry,ref=ghcr.io/timoteocruz/ruta-del-sabor:buildcache,mode=max

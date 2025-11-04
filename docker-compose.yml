@@ -2,8 +2,14 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    image: ghcr.io/timoteocruz/ruta-del-sabor:latest
     container_name: ruta-del-sabor-app
     ports:
       - "80:80"
     restart: always
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
